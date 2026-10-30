@@ -36,11 +36,11 @@ Chaque implémentation branche son code sur ces tests au moyen d'un **adaptateur
 
 | Module | Adaptateur | Test |
 |---|---|---|
-| `residence-legacy` | `LegacyAdapter` | `LegacyContratTest` : passe ✅ |
+| `residence-legacy` | `NouveauSystemeAdapter` | `LegacyContratTest` : passe ✅ |
 | `residence-refactored` | `NouveauSystemeAdapter` (à écrire) | `NouveauSystemeContratTest` (`@Disabled` au départ) |
 
 Les tests ne connaissent aucune classe interne : vous êtes libres de remodeler entièrement le code, tant que
-l'adaptateur peut traduire les appels. Regardez `LegacyAdapter` : tout ce qu'il doit « bricoler » (vider des
+l'adaptateur peut traduire les appels. Regardez `NouveauSystemeAdapter` : tout ce qu'il doit « bricoler » (vider des
 champs statiques, convertir des enums en `String`, éclater les options en booléens) est un symptôme à corriger.
 
 ### Commandes
@@ -220,7 +220,7 @@ les loyers CC et les dépôts des baux en cours, les impayés, le nombre de SMS 
 
 1. Copier toutes les classes de `residence-legacy/src/main/java/fr/efrei/residence` dans
    `residence-refactored/src/main/java/fr/efrei/residence`.
-2. Remplacer le contenu de `NouveauSystemeAdapter` par celui de `LegacyAdapter` (en gardant le nom de la classe).
+2. Remplacer le contenu de `NouveauSystemeAdapter` par celui de `NouveauSystemeAdapter` (en gardant le nom de la classe).
 3. Retirer `@Disabled` de `NouveauSystemeContratTest`.
 
 **Terminé quand :** `mvn install` affiche deux fois `Tests run: 101, Failures: 0`. Faire un premier commit.
