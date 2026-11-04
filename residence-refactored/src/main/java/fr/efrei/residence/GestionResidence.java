@@ -17,8 +17,8 @@ public class GestionResidence {
     // ------------------------------------------------------------------ étudiants
 
     public Etudiant inscrireEtudiant(String nom, String prenom, String email, String telephone, String adresse,
-                                     String profil, int echelonBourse, double ressources, boolean pmr,
-                                     String canalPrefere) {
+                                     ProfilEtudiant profil, int echelonBourse, double ressources, boolean pmr,
+                                     CanalNotification canalPrefere) {
         if (nom == null || nom.trim().isEmpty()) {
             System.out.println("Inscription refusée : nom obligatoire");
             return null;
@@ -31,23 +31,16 @@ public class GestionResidence {
             System.out.println("Inscription refusée : " + email + " déjà inscrit");
             return null;
         }
-       
-
-       PolitiqueProfil politique = PolitiqueProfil.pour(profil);
-       if (politique == null) {
-        System.out.println("Inscription refusée : profil inconnu " + profil);
-        return null;
-    }
-    String motif = politique.motifRefusInscription(echelonBourse, telephone);
-    if (motif != null) {
-        System.out.println(motif);
-        return null;
-    }
-        if (canalPrefere.equals("SMS") && telephone == null) {
+        String motif = PolitiqueProfil.pour(profil).motifRefusInscription(echelonBourse, telephone);
+        if (motif != null) {
+            System.out.println(motif);
+            return null;
+        }
+        if (canalPrefere == CanalNotification.SMS && telephone == null) {
             System.out.println("Inscription refusée : téléphone obligatoire pour les SMS");
             return null;
         }
-        if (canalPrefere.equals("COURRIER") && (adresse == null || adresse.isEmpty())) {
+        if (canalPrefere == CanalNotification.COURRIER && (adresse == null || adresse.isEmpty())) {
             System.out.println("Inscription refusée : adresse obligatoire pour le courrier");
             return null;
         }
@@ -60,22 +53,12 @@ public class GestionResidence {
 
     // ------------------------------------------------------------------ logements
 
-    public Logement ajouterLogement(String type, String numero, double surface, int etage, boolean meuble, int param) {
+    public Logement ajouterLogement(TypeLogement type, String numero, double surface, int etage, boolean meuble, int param) {
         if (Residence.trouver(numero) != null) {
             System.out.println("Logement " + numero + " existe déjà");
             return null;
         }
-        Logement l = null;
-        if (type.equals("STUDIO")) {
-            l = new Studio(numero, surface, etage, meuble);
-        } else if (type.equals("T1")) {
-            l = new T1(numero, surface, etage, meuble);
-        } else if (type.equals("T2")) {
-            l = new T2(numero, surface, etage, meuble, param);
-        } else if (type.equals("COLOCATION")) {
-            if (param < 2) param = 2;
-            l = new Colocation(numero, surface, etage, meuble, param);
-        }
+        Logement l = LogementFactory.creer(type, numero, surface, etage, meuble, param);
         if (l == null) {
             System.out.println("Type de logement inconnu : " + type);
             return null;
@@ -87,14 +70,14 @@ public class GestionResidence {
 
     // ------------------------------------------------------------------ attribution
 
-    public Bail attribuerLogement(Etudiant e, String typeSouhaite, boolean parking, boolean menage, boolean laverie,
+    public Bail attribuerLogement(Etudiant e, TypeLogement typeSouhaite, boolean parking, boolean menage, boolean laverie,
                                   boolean fibre, boolean assurance, LocalDate dateSignature) {
         System.out.println("--- Attribution d'un " + typeSouhaite + " à " + e.getNomComplet());
         Logement choisi = null;
         double loyer = 0;
         double charges = 0;
         for (Logement l : Residence.logements) {
-            if (!l.getType().equals(typeSouhaite)) continue;
+            if (l.getType() != typeSouhaite) continue;
             if (!l.estLibre()) continue;
             if (e.isPmr() && !l.estAccessiblePMR()) continue;
 
@@ -103,8 +86,7 @@ public class GestionResidence {
             double chargesCandidat = calculateur.calculerCharges(l);
             double total = loyerCandidat + chargesCandidat;
 
-            // solvabilité
-           boolean solvable = PolitiqueProfil.pour(e.getProfil()).estSolvable(e.getRessourcesMensuelles(), total);
+            boolean solvable = PolitiqueProfil.pour(e.getProfil()).estSolvable(e.getRessourcesMensuelles(), total);
             if (!solvable) {
                 System.out.println("  " + l.getNumero() + " : ressources insuffisantes (" + Utils.euros(total) + "/mois)");
                 continue;
@@ -153,7 +135,7 @@ public class GestionResidence {
 
     public boolean entrerDansLesLieux(String idBail, LocalDate date) {
         Bail b = db.trouverBail(idBail);
-        if (b == null || !b.getStatut().equals("SIGNE")) {
+        if (b == null || b.getStatut() != StatutBail.SIGNE) {
             System.out.println("Entrée impossible pour " + idBail);
             return false;
         }
@@ -162,7 +144,7 @@ public class GestionResidence {
             return false;
         }
         b.setDateEntree(date);
-        b.setStatut("ACTIF");
+        b.setStatut(StatutBail.ACTIF);
         db.mettreAJourBail(b);
         System.out.println("Entrée dans les lieux : " + idBail + " le " + Utils.date(date));
         notifier(b.getEtudiant(), "État des lieux d'entrée",
@@ -171,13 +153,15 @@ public class GestionResidence {
         return true;
     }
 
+    public static final int JOUR_ECHEANCE_LOYER = 5;
+
     public boolean payerLoyer(String idBail, String mois, LocalDate datePaiement, double montant) {
         Bail b = db.trouverBail(idBail);
-        if (b == null || !(b.getStatut().equals("ACTIF") || b.getStatut().equals("PREAVIS"))) {
+        if (b == null || !(b.getStatut() == StatutBail.ACTIF || b.getStatut() == StatutBail.PREAVIS)) {
             System.out.println("Paiement refusé pour " + idBail);
             return false;
         }
-        LocalDate echeance = YearMonth.parse(mois).atDay(5);
+        LocalDate echeance = YearMonth.parse(mois).atDay(JOUR_ECHEANCE_LOYER);
         double penalite = 0;
         if (datePaiement.isAfter(echeance)) {
             PolitiqueProfil politique = PolitiqueProfil.pour(b.getEtudiant().getProfil());
@@ -202,13 +186,13 @@ public class GestionResidence {
 
     public boolean donnerPreavis(String idBail, LocalDate date) {
         Bail b = db.trouverBail(idBail);
-        if (b == null || !b.getStatut().equals("ACTIF")) {
+        if (b == null || b.getStatut() != StatutBail.ACTIF) {
             System.out.println("Préavis impossible pour " + idBail);
             return false;
         }
         int jours = PolitiqueProfil.pour(b.getEtudiant().getProfil()).dureePreavisJours();
         b.setDateFin(date.plusDays(jours));
-        b.setStatut("PREAVIS");
+        b.setStatut(StatutBail.PREAVIS);
         db.mettreAJourBail(b);
         System.out.println("Préavis " + idBail + " : fin du bail le " + Utils.date(b.getDateFin()));
         notifier(b.getEtudiant(), "Préavis de départ",
@@ -218,7 +202,7 @@ public class GestionResidence {
 
     public boolean sortir(String idBail, LocalDate date, double retenuesDegats) {
         Bail b = db.trouverBail(idBail);
-        if (b == null || !b.getStatut().equals("PREAVIS")) {
+        if (b == null || b.getStatut() != StatutBail.PREAVIS) {
             System.out.println("Sortie impossible pour " + idBail);
             return false;
         }
@@ -244,7 +228,7 @@ public class GestionResidence {
         b.retenues = Utils.arrondir(retenuesDegats);
         b.cautionRestituee = Utils.arrondir(restitution);
         b.soldeDu = Utils.arrondir(resteAPayer);
-        b.setStatut("TERMINE");
+        b.setStatut(StatutBail.TERMINE);
         db.mettreAJourBail(b);
 
         System.out.println("Sortie " + idBail + " le " + Utils.date(date) + " : caution " + Utils.euros(b.getCaution())
@@ -260,7 +244,7 @@ public class GestionResidence {
 
     public boolean annulerBail(String idBail) {
         Bail b = db.trouverBail(idBail);
-        if (b == null || !b.getStatut().equals("SIGNE")) {
+        if (b == null || b.getStatut() != StatutBail.SIGNE) {
             System.out.println("Annulation impossible pour " + idBail);
             return false;
         }
@@ -270,7 +254,7 @@ public class GestionResidence {
         } else {
             l.liberer(b.getEtudiant());
         }
-        b.setStatut("ANNULE");
+        b.setStatut(StatutBail.ANNULE);
         db.mettreAJourBail(b);
         System.out.println("Bail " + idBail + " annulé, frais de dossier conservés : " + Utils.euros(b.getFraisDossier()));
         notifier(b.getEtudiant(), "Annulation du bail " + idBail,
@@ -284,20 +268,20 @@ public class GestionResidence {
         System.out.println("--- Relance des impayés");
         for (Bail b : db.tousLesBaux()) {
             if (b.soldeDu <= 0) continue;
-            if (b.getStatut().equals("ANNULE")) continue;
+            if (b.getStatut() == StatutBail.ANNULE) continue;
             Etudiant e = b.getEtudiant();
-            String canal = e.getCanalPrefere();
+            CanalNotification canal = e.getCanalPrefere();
             switch (canal) {
-                case "EMAIL":
+                case EMAIL:
                     EmailService.envoyer(e.getEmail(), "RELANCE - loyer impayé",
                             "Bonjour " + e.getPrenom() + ", il reste " + Utils.euros(b.soldeDu) + " à régler sur le bail " + b.getId() + ".");
                     break;
-                case "SMS":
-                    new SmsService().envoyerSms(e.getTelephone(),
+                case SMS:
+                    ServiceNotificationFactory.creerSms().envoyerSms(e.getTelephone(),
                             "Campus Vert : " + Utils.euros(b.soldeDu) + " impayés sur " + b.getId());
                     break;
-                case "COURRIER":
-                    new CourrierService().imprimerEtPoster(e.getNomComplet(), e.getAdresse(), "Relance loyer impayé",
+                case COURRIER:
+                    ServiceNotificationFactory.creerCourrier().imprimerEtPoster(e.getNomComplet(), e.getAdresse(), "Relance loyer impayé",
                             "Il reste " + Utils.euros(b.soldeDu) + " à régler sur le bail " + b.getId() + ".");
                     break;
                 default:
@@ -320,16 +304,16 @@ public class GestionResidence {
         int nbPlacesColoc = 0, nbPlacesColocOccupees = 0;
         double surfaceBalcons = 0;
         for (Logement l : Residence.logements) {
-            if (l.getType().equals("STUDIO")) {
+            if (l.getType() == TypeLogement.STUDIO) {
                 nbStudios++;
                 if (!l.estLibre()) nbStudiosOccupes++;
-            } else if (l.getType().equals("T1")) {
+            } else if (l.getType() == TypeLogement.T1) {
                 nbT1++;
                 if (!l.estLibre()) nbT1Occupes++;
-            } else if (l.getType().equals("T2")) {
+            } else if (l.getType() == TypeLogement.T2) {
                 nbT2++;
                 if (!l.estLibre()) nbT2Occupes++;
-            } else if (l.getType().equals("COLOCATION")) {
+            } else if (l.getType() == TypeLogement.COLOCATION) {
                 nbPlacesColoc += l.getNombrePlaces();
                 nbPlacesColocOccupees += l.getColocataires().size();
             }
@@ -352,7 +336,7 @@ public class GestionResidence {
         double cautions = 0;
         List<Bail> baux = db.tousLesBaux();
         for (Bail b : baux) {
-            if (b.getStatut().equals("ACTIF") || b.getStatut().equals("PREAVIS")) {
+            if (b.getStatut() == StatutBail.ACTIF || b.getStatut() == StatutBail.PREAVIS) {
                 loyersMensuels += b.getLoyerChargesComprises();
                 cautions += b.getCaution();
             }
@@ -370,15 +354,13 @@ public class GestionResidence {
     // ------------------------------------------------------------------ notifications
 
     private void notifier(Etudiant e, String sujet, String message) {
-        String canal = e.getCanalPrefere();
-        if (canal.equals("EMAIL")) {
+        CanalNotification canal = e.getCanalPrefere();
+        if (canal == CanalNotification.EMAIL) {
             EmailService.envoyer(e.getEmail(), sujet, message);
-        } else if (canal.equals("SMS")) {
-            SmsService sms = new SmsService();
-            sms.envoyerSms(e.getTelephone(), sujet + " - " + message);
-        } else if (canal.equals("COURRIER")) {
-            CourrierService courrier = new CourrierService();
-            courrier.imprimerEtPoster(e.getNomComplet(), e.getAdresse(), sujet, message);
+        } else if (canal == CanalNotification.SMS) {
+            ServiceNotificationFactory.creerSms().envoyerSms(e.getTelephone(), sujet + " - " + message);
+        } else if (canal == CanalNotification.COURRIER) {
+            ServiceNotificationFactory.creerCourrier().imprimerEtPoster(e.getNomComplet(), e.getAdresse(), sujet, message);
         }
         // les internationaux reçoivent toujours un email en plus (demande de l'administration)
         if (PolitiqueProfil.pour(e.getProfil()).recoitEmailComplementaire(canal)) {

@@ -2,31 +2,37 @@ package fr.efrei.residence;
 
 public class CalculateurLoyer {
 
+    public static final double COEFF_MEUBLE = 1.15;
+    public static final double COEFF_REZ_DE_CHAUSSEE = 0.95;
+
+    public static final double OPTION_PARKING = 45;
+    public static final double OPTION_LAVERIE = 12;
+    public static final double OPTION_FIBRE = 20;
+    public static final double OPTION_ASSURANCE = 9;
+
     /**
      * Loyer mensuel hors charges, options comprises, remise déduite.
      */
-    public double calculerLoyer(Logement l, String profil, int echelon, boolean parking, boolean menage,
+    public double calculerLoyer(Logement l, ProfilEtudiant profil, int echelon, boolean parking, boolean menage,
                                 boolean laverie, boolean fibre, boolean assurance) {
-        // loyer de base selon le type
         TarificationLogement tarif = TarificationLogement.pour(l.getType());
         double loyer = tarif.loyerDeBase(l);
 
-        if (l.isMeuble()) loyer = loyer * 1.15;
-        if (l.getEtage() == 0) loyer = loyer * 0.95;
+        if (l.isMeuble()) loyer = loyer * COEFF_MEUBLE;
+        if (l.getEtage() == Logement.ETAGE_REZ_DE_CHAUSSEE) loyer = loyer * COEFF_REZ_DE_CHAUSSEE;
 
         // options
         if (menage) loyer = loyer * tarif.coefficientMenage();
-
-        if (parking) loyer = loyer + 45;
-        if (laverie) loyer = loyer + 12;
-        if (fibre && tarif.fibrePayante()) loyer = loyer + 20;
-        if (assurance) loyer = loyer + 9;
+        if (parking) loyer = loyer + OPTION_PARKING;
+        if (laverie) loyer = loyer + OPTION_LAVERIE;
+        if (fibre && tarif.fibrePayante()) loyer = loyer + OPTION_FIBRE;
+        if (assurance) loyer = loyer + OPTION_ASSURANCE;
 
         loyer = PolitiqueProfil.pour(profil).appliquerRemise(loyer, echelon);
 
         return Math.round(loyer * 100.0) / 100.0;
-
     }
+
     public double calculerCharges(Logement l) {
         return TarificationLogement.pour(l.getType()).charges();
     }

@@ -1,13 +1,16 @@
 package fr.efrei.residence;
 
 public class TarifT1 implements TarificationLogement {
+    public static final double TARIF_M2 = 13;
+    public static final double FORFAIT = 50;
+
     @Override
     public double loyerDeBase(Logement l) {
-        return l.getSurface() * 13 + 50;
+        return l.getSurface() * TARIF_M2 + FORFAIT;
     }
     @Override
     public double coefficientMenage() {
-        return 1.08;
+        return COEFF_MENAGE;
     }
     @Override
     public boolean fibrePayante() {
@@ -15,6 +18,6 @@ public class TarifT1 implements TarificationLogement {
     }
     @Override
     public double charges() {
-        return 35;
+        return CHARGES_FORFAIT;
     }
 }

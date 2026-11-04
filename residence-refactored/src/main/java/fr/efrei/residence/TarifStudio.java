@@ -1,15 +1,18 @@
 package fr.efrei.residence;
 
 public class TarifStudio implements TarificationLogement {
+    public static final double TARIF_M2 = 14;
+    public static final double LOYER_MINIMUM = 350;
+
     @Override
     public double loyerDeBase(Logement l) {
-        double loyer = l.getSurface() * 14;
-        if (loyer < 350) loyer = 350;
+        double loyer = l.getSurface() * TARIF_M2;
+        if (loyer < LOYER_MINIMUM) loyer = LOYER_MINIMUM;
         return loyer;
     }
     @Override
     public double coefficientMenage() {
-        return 1.08;
+        return COEFF_MENAGE;
     }
     @Override
     public boolean fibrePayante() {
@@ -17,6 +20,6 @@ public class TarifStudio implements TarificationLogement {
     }
     @Override
     public double charges() {
-        return 35;
+        return CHARGES_FORFAIT;
     }
 }

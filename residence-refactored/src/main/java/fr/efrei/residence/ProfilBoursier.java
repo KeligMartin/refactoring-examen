@@ -1,15 +1,20 @@
 package fr.efrei.residence;
 
 public class ProfilBoursier implements PolitiqueProfil {
+    public static final double REMISE_PAR_ECHELON = 0.05;
+    public static final double REMISE_MAXIMUM = 0.30;
+    public static final int ECHELON_MINIMUM = 0;
+    public static final int ECHELON_MAXIMUM = 7;
+
     @Override
     public double appliquerRemise(double loyer, int echelon) {
-        double taux = echelon * 0.05;
-        if (taux > 0.30) taux = 0.30;
+        double taux = echelon * REMISE_PAR_ECHELON;
+        if (taux > REMISE_MAXIMUM) taux = REMISE_MAXIMUM;
         return loyer * (1 - taux);
     }
     @Override
     public boolean estSolvable(double ressources, double loyerCc) {
-        return true;
+        return true; // garantie Visale
     }
     @Override
     public double depotGarantie(double loyerHc) {
@@ -21,7 +26,7 @@ public class ProfilBoursier implements PolitiqueProfil {
     }
     @Override
     public int dureePreavisJours() {
-        return 15;
+        return PREAVIS_JOURS_COURT;
     }
     @Override
     public double penaliteSiRetard(double loyerCc) {
@@ -29,13 +34,13 @@ public class ProfilBoursier implements PolitiqueProfil {
     }
     @Override
     public String motifRefusInscription(int echelon, String telephone) {
-        if (echelon < 0 || echelon > 7) {
+        if (echelon < ECHELON_MINIMUM || echelon > ECHELON_MAXIMUM) {
             return "Inscription refusée : échelon de bourse invalide";
         }
         return null;
     }
     @Override
-    public boolean recoitEmailComplementaire(String canal) {
+    public boolean recoitEmailComplementaire(CanalNotification canal) {
         return false;
     }
 }

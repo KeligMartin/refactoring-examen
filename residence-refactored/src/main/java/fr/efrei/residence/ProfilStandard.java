@@ -7,7 +7,7 @@ public class ProfilStandard implements PolitiqueProfil {
     }
     @Override
     public boolean estSolvable(double ressources, double loyerCc) {
-        return ressources >= loyerCc * 3;
+        return ressources >= loyerCc * SOLVABILITE_RATIO_DEFAUT;
     }
     @Override
     public double depotGarantie(double loyerHc) {
@@ -15,16 +15,16 @@ public class ProfilStandard implements PolitiqueProfil {
     }
     @Override
     public double fraisDossier() {
-        return 100;
+        return FRAIS_DOSSIER_DEFAUT;
     }
     @Override
     public int dureePreavisJours() {
-        return 30;
+        return PREAVIS_JOURS_LONG;
     }
     @Override
     public double penaliteSiRetard(double loyerCc) {
-        double penalite = loyerCc * 0.05;
-        if (penalite < 10) penalite = 10;
+        double penalite = loyerCc * TAUX_PENALITE_RETARD;
+        if (penalite < PENALITE_MINIMUM) penalite = PENALITE_MINIMUM;
         return penalite;
     }
     @Override
@@ -32,7 +32,7 @@ public class ProfilStandard implements PolitiqueProfil {
         return null;
     }
     @Override
-    public boolean recoitEmailComplementaire(String canal) {
+    public boolean recoitEmailComplementaire(CanalNotification canal) {
         return false;
     }
 }

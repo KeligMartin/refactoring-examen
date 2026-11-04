@@ -1,30 +1,33 @@
 package fr.efrei.residence;
 
 public class ProfilInternational implements PolitiqueProfil {
+    public static final int CAUTION_MOIS = 2;
+    public static final double FRAIS_DOSSIER = 150;
+
     @Override
     public double appliquerRemise(double loyer, int echelon) {
         return loyer;
     }
     @Override
     public boolean estSolvable(double ressources, double loyerCc) {
-        return ressources >= loyerCc * 3;
+        return ressources >= loyerCc * SOLVABILITE_RATIO_DEFAUT;
     }
     @Override
     public double depotGarantie(double loyerHc) {
-        return loyerHc * 2;
+        return loyerHc * CAUTION_MOIS;
     }
     @Override
     public double fraisDossier() {
-        return 150;
+        return FRAIS_DOSSIER;
     }
     @Override
     public int dureePreavisJours() {
-        return 30;
+        return PREAVIS_JOURS_LONG;
     }
     @Override
     public double penaliteSiRetard(double loyerCc) {
-        double penalite = loyerCc * 0.05;
-        if (penalite < 10) penalite = 10;
+        double penalite = loyerCc * TAUX_PENALITE_RETARD;
+        if (penalite < PENALITE_MINIMUM) penalite = PENALITE_MINIMUM;
         return penalite;
     }
     @Override
@@ -35,7 +38,7 @@ public class ProfilInternational implements PolitiqueProfil {
         return null;
     }
     @Override
-    public boolean recoitEmailComplementaire(String canal) {
-        return !canal.equals("EMAIL");
+    public boolean recoitEmailComplementaire(CanalNotification canal) {
+        return canal != CanalNotification.EMAIL;
     }
 }
