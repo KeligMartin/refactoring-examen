@@ -64,28 +64,10 @@ public class GestionResidence {
             System.out.println("Logement " + numero + " existe déjà");
             return null;
         }
-        if (type == null) {
-            System.out.println("Type de logement inconnu");
+        Logement l = LogementFactory.creer(type, numero, surface, etage, meuble, param);
+        if (l == null) {
+            System.out.println("Type de logement inconnu : " + type);
             return null;
-        }
-        Logement l;
-        switch (type) {
-            case STUDIO:
-                l = new Studio(numero, surface, etage, meuble);
-                break;
-            case T1:
-                l = new T1(numero, surface, etage, meuble);
-                break;
-            case T2:
-                l = new T2(numero, surface, etage, meuble, param);
-                break;
-            case COLOCATION:
-                if (param < Colocation.PLACES_MINIMUM) param = Colocation.PLACES_MINIMUM;
-                l = new Colocation(numero, surface, etage, meuble, param);
-                break;
-            default:
-                System.out.println("Type de logement inconnu : " + type);
-                return null;
         }
         Residence.logements.add(l);
         System.out.println("Logement ajouté : " + numero + " (" + type + ")");
@@ -345,11 +327,11 @@ public class GestionResidence {
                             "Bonjour " + e.getPrenom() + ", il reste " + Utils.euros(b.soldeDu) + " à régler sur le bail " + b.getId() + ".");
                     break;
                 case SMS:
-                    new SmsService().envoyerSms(e.getTelephone(),
+                    ServiceNotificationFactory.creerSms().envoyerSms(e.getTelephone(),
                             "Campus Vert : " + Utils.euros(b.soldeDu) + " impayés sur " + b.getId());
                     break;
                 case COURRIER:
-                    new CourrierService().imprimerEtPoster(e.getNomComplet(), e.getAdresse(), "Relance loyer impayé",
+                    ServiceNotificationFactory.creerCourrier().imprimerEtPoster(e.getNomComplet(), e.getAdresse(), "Relance loyer impayé",
                             "Il reste " + Utils.euros(b.soldeDu) + " à régler sur le bail " + b.getId() + ".");
                     break;
                 default:
@@ -426,11 +408,9 @@ public class GestionResidence {
         if (canal == CanalNotification.EMAIL) {
             EmailService.envoyer(e.getEmail(), sujet, message);
         } else if (canal == CanalNotification.SMS) {
-            SmsService sms = new SmsService();
-            sms.envoyerSms(e.getTelephone(), sujet + " - " + message);
+            ServiceNotificationFactory.creerSms().envoyerSms(e.getTelephone(), sujet + " - " + message);
         } else if (canal == CanalNotification.COURRIER) {
-            CourrierService courrier = new CourrierService();
-            courrier.imprimerEtPoster(e.getNomComplet(), e.getAdresse(), sujet, message);
+            ServiceNotificationFactory.creerCourrier().imprimerEtPoster(e.getNomComplet(), e.getAdresse(), sujet, message);
         }
         // les internationaux reçoivent toujours un email en plus (demande de l'administration)
         if (e.getProfil() == ProfilEtudiant.INTERNATIONAL && canal != CanalNotification.EMAIL) {
