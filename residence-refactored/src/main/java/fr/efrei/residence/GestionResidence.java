@@ -31,19 +31,18 @@ public class GestionResidence {
             System.out.println("Inscription refusée : " + email + " déjà inscrit");
             return null;
         }
-        if (!profil.equals("STANDARD") && !profil.equals("BOURSIER") && !profil.equals("ALTERNANT")
-                && !profil.equals("INTERNATIONAL")) {
-            System.out.println("Inscription refusée : profil inconnu " + profil);
-            return null;
-        }
-        if (profil.equals("BOURSIER") && (echelonBourse < 0 || echelonBourse > 7)) {
-            System.out.println("Inscription refusée : échelon de bourse invalide");
-            return null;
-        }
-        if (profil.equals("INTERNATIONAL") && (telephone == null || !telephone.startsWith("+"))) {
-            System.out.println("Inscription refusée : numéro international (+XX) obligatoire");
-            return null;
-        }
+       
+
+       PolitiqueProfil politique = PolitiqueProfil.pour(profil);
+       if (politique == null) {
+        System.out.println("Inscription refusée : profil inconnu " + profil);
+        return null;
+    }
+    String motif = politique.motifRefusInscription(echelonBourse, telephone);
+    if (motif != null) {
+        System.out.println(motif);
+        return null;
+    }
         if (canalPrefere.equals("SMS") && telephone == null) {
             System.out.println("Inscription refusée : téléphone obligatoire pour les SMS");
             return null;
@@ -105,14 +104,7 @@ public class GestionResidence {
             double total = loyerCandidat + chargesCandidat;
 
             // solvabilité
-            boolean solvable;
-            if (e.getProfil().equals("BOURSIER")) {
-                solvable = true; // garantie Visale
-            } else if (e.getProfil().equals("ALTERNANT")) {
-                solvable = e.getRessourcesMensuelles() >= total * 2;
-            } else {
-                solvable = e.getRessourcesMensuelles() >= total * 3;
-            }
+           boolean solvable = PolitiqueProfil.pour(e.getProfil()).estSolvable(e.getRessourcesMensuelles(), total);
             if (!solvable) {
                 System.out.println("  " + l.getNumero() + " : ressources insuffisantes (" + Utils.euros(total) + "/mois)");
                 continue;
@@ -144,25 +136,9 @@ public class GestionResidence {
         b.setLoyerHorsCharges(loyer);
         b.setCharges(charges);
 
-        // dépôt de garantie
-        double caution;
-        if (e.getProfil().equals("BOURSIER")) {
-            caution = 0;
-        } else if (e.getProfil().equals("INTERNATIONAL")) {
-            caution = loyer * 2;
-        } else {
-            caution = loyer;
-        }
-        b.setCaution(Utils.arrondir(caution));
-
-        // frais de dossier
-        if (e.getProfil().equals("BOURSIER")) {
-            b.setFraisDossier(0);
-        } else if (e.getProfil().equals("INTERNATIONAL")) {
-            b.setFraisDossier(150);
-        } else {
-            b.setFraisDossier(100);
-        }
+        PolitiqueProfil politique = PolitiqueProfil.pour(e.getProfil());
+        b.setCaution(Utils.arrondir(politique.depotGarantie(loyer)));
+        b.setFraisDossier(politique.fraisDossier());
 
         db.sauvegarderBail(b);
         System.out.println("  Bail " + id + " signé : " + choisi.getNumero() + ", " + Utils.euros(b.getLoyerChargesComprises())
@@ -204,11 +180,8 @@ public class GestionResidence {
         LocalDate echeance = YearMonth.parse(mois).atDay(5);
         double penalite = 0;
         if (datePaiement.isAfter(echeance)) {
-            if (!b.getEtudiant().getProfil().equals("BOURSIER")) {
-                penalite = b.getLoyerChargesComprises() * 0.05;
-                if (penalite < 10) penalite = 10;
-                penalite = Utils.arrondir(penalite);
-            }
+            PolitiqueProfil politique = PolitiqueProfil.pour(b.getEtudiant().getProfil());
+            penalite = Utils.arrondir(politique.penaliteSiRetard(b.getLoyerChargesComprises()));
         }
         double du = Utils.arrondir(b.getLoyerChargesComprises() + penalite);
         b.paiements.add(new Paiement(mois, datePaiement, montant, penalite, du));
@@ -233,13 +206,7 @@ public class GestionResidence {
             System.out.println("Préavis impossible pour " + idBail);
             return false;
         }
-        int jours;
-        String profil = b.getEtudiant().getProfil();
-        if (profil.equals("BOURSIER") || profil.equals("ALTERNANT")) {
-            jours = 15;
-        } else {
-            jours = 30;
-        }
+        int jours = PolitiqueProfil.pour(b.getEtudiant().getProfil()).dureePreavisJours();
         b.setDateFin(date.plusDays(jours));
         b.setStatut("PREAVIS");
         db.mettreAJourBail(b);
@@ -414,7 +381,7 @@ public class GestionResidence {
             courrier.imprimerEtPoster(e.getNomComplet(), e.getAdresse(), sujet, message);
         }
         // les internationaux reçoivent toujours un email en plus (demande de l'administration)
-        if (e.getProfil().equals("INTERNATIONAL") && !canal.equals("EMAIL")) {
+        if (PolitiqueProfil.pour(e.getProfil()).recoitEmailComplementaire(canal)) {
             EmailService.envoyer(e.getEmail(), "[EN] " + sujet, message);
         }
     }
