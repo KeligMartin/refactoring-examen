@@ -17,10 +17,13 @@ public class GestionResidence {
     private CalculateurLoyer calculateur = new CalculateurLoyer();
     private final NotificationService notificationService;
     private final ValidateurInscription validateurInscription;
+    private final ServiceAttribution serviceAttribution;
 
-    public GestionResidence(NotificationService notificationService, ValidateurInscription validateurInscription) {
+    public GestionResidence(NotificationService notificationService, ValidateurInscription validateurInscription,
+                            ServiceAttribution serviceAttribution) {
         this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
         this.validateurInscription = Objects.requireNonNull(validateurInscription, "validateurInscription");
+        this.serviceAttribution = Objects.requireNonNull(serviceAttribution, "serviceAttribution");
     }
 
     // ------------------------------------------------------------------ étudiants
@@ -61,48 +64,21 @@ public class GestionResidence {
     // ------------------------------------------------------------------ attribution
 
     public Bail attribuerLogement(Etudiant e, TypeLogement typeSouhaite, Set<OptionLoyer> options, LocalDate dateSignature) {
-        System.out.println("--- Attribution d'un " + typeSouhaite + " à " + e.getNomComplet());
-        Logement choisi = null;
-        double loyer = 0;
-        double charges = 0;
-        for (Logement l : Residence.logements) {
-            if (l.getType() != typeSouhaite) continue;
-            if (!l.estLibre()) continue;
-            if (e.isPmr() && !l.estAccessiblePMR()) continue;
-
-            double loyerCandidat = calculateur.calculerLoyer(l, e.getProfil(), e.getEchelonBourse(), options);
-            double chargesCandidat = calculateur.calculerCharges(l);
-            double total = loyerCandidat + chargesCandidat;
-
-            boolean solvable = PolitiqueProfil.pour(e.getProfil()).estSolvable(e.getRessourcesMensuelles(), total);
-            if (!solvable) {
-                System.out.println("  " + l.getNumero() + " : ressources insuffisantes (" + Utils.euros(total) + "/mois)");
-                continue;
-            }
-            choisi = l;
-            loyer = loyerCandidat;
-            charges = chargesCandidat;
-            break;
-        }
-        if (choisi == null) {
-            System.out.println("  Aucun logement disponible pour " + e.getNomComplet());
+        ResultatAttribution resultat = serviceAttribution.attribuer(e, typeSouhaite, options, Residence.logements,
+                calculateur);
+        if (resultat == null) {
             return null;
         }
-
-        if (choisi instanceof Colocation) {
-            choisi.ajouterColocataire(e);
-        } else {
-            choisi.loger(e);
-        }
+        Logement choisi = resultat.logement();
 
         compteurBail++;
         String id = "BAIL-" + String.format("%03d", compteurBail);
         Bail b = new Bail(id, e, choisi, dateSignature, options);
-        b.setLoyerHorsCharges(loyer);
-        b.setCharges(charges);
+        b.setLoyerHorsCharges(resultat.loyerHorsCharges());
+        b.setCharges(resultat.charges());
 
         PolitiqueProfil politique = PolitiqueProfil.pour(e.getProfil());
-        b.setCaution(Utils.arrondir(politique.depotGarantie(loyer)));
+        b.setCaution(Utils.arrondir(politique.depotGarantie(resultat.loyerHorsCharges())));
         b.setFraisDossier(politique.fraisDossier());
 
         db.sauvegarderBail(b);
