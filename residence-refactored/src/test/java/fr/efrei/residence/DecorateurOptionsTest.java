@@ -56,4 +56,11 @@ class DecorateurOptionsTest {
 
         assertEquals(109.0, loyer.calculer(), DELTA);
     }
+
+    @Test
+    void remiseEstAppliqueeAuMontantTotalDecore() {
+        Loyer loyer = new DecorateurRemise(new LoyerBase(100.0), new ProfilBoursier(), 2);
+
+        assertEquals(90.0, loyer.calculer(), DELTA);
+    }
 }
