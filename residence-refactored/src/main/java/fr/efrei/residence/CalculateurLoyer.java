@@ -5,10 +5,10 @@ public class CalculateurLoyer {
     public static final double COEFF_MEUBLE = 1.15;
     public static final double COEFF_REZ_DE_CHAUSSEE = 0.95;
 
-    public static final double OPTION_PARKING = 45;
-    public static final double OPTION_LAVERIE = 12;
-    public static final double OPTION_FIBRE = 20;
-    public static final double OPTION_ASSURANCE = 9;
+    public static final double OPTION_PARKING = DecorateurParking.MONTANT;
+    public static final double OPTION_LAVERIE = DecorateurLaverie.MONTANT;
+    public static final double OPTION_FIBRE = DecorateurFibre.MONTANT;
+    public static final double OPTION_ASSURANCE = DecorateurAssurance.MONTANT;
 
     /**
      * Loyer mensuel hors charges, options comprises, remise déduite.
