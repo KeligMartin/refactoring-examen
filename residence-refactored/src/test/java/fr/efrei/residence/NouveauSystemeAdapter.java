@@ -31,12 +31,12 @@ import java.util.Set;
 public class NouveauSystemeAdapter implements SystemeResidence {
 
     private GestionResidence gestion;
+    private EtudiantRepository etudiants;
+    private BailRepository baux;
+    private LogementRepository logements;
 
     @Override
     public void reinitialiser() {
-        Database.getInstance();
-        Database.etudiants.clear();
-        Database.baux.clear();
         EmailService.journal.clear();
         SmsService.journal.clear();
         CourrierService.journal.clear();
@@ -44,10 +44,13 @@ public class NouveauSystemeAdapter implements SystemeResidence {
         CourrierService.totalAffranchissement = 0;
         Etudiant.compteur = 0;
         GestionResidence.compteurBail = 0;
-        Residence.initialiser();
+        etudiants = new DepotEtudiantMemoire();
+        baux = new DepotBailMemoire();
+        logements = new DepotLogementMemoire();
+        Residence.creerLogementsInitiaux().forEach(logements::sauvegarder);
         ServiceNotification serviceNotification = new ServiceNotification();
-        gestion = new GestionResidence(serviceNotification, new ValidateurInscription(), new ServiceAttribution(),
-                new CycleVieBailService(Database.getInstance(), serviceNotification));
+        gestion = new GestionResidence(etudiants, baux, logements, serviceNotification, new ValidateurInscription(),
+                new ServiceAttribution(), new CycleVieBailService(baux, serviceNotification));
     }
 
     @Override
@@ -66,7 +69,7 @@ public class NouveauSystemeAdapter implements SystemeResidence {
 
     @Override
     public Optional<EtatLogement> logement(String numero) {
-        Logement l = Residence.trouver(numero);
+        Logement l = logements.trouverParNumero(numero);
         if (l == null) {
             return Optional.empty();
         }
@@ -82,7 +85,7 @@ public class NouveauSystemeAdapter implements SystemeResidence {
 
     @Override
     public OptionalDouble devisLoyer(DemandeDevis d) {
-        Logement l = Residence.trouver(d.numeroLogement());
+        Logement l = logements.trouverParNumero(d.numeroLogement());
         if (l == null) {
             return OptionalDouble.empty();
         }
@@ -93,7 +96,7 @@ public class NouveauSystemeAdapter implements SystemeResidence {
 
     @Override
     public Optional<String> attribuer(DemandeAttribution d) {
-        Etudiant e = etudiant(d.refEtudiant());
+        Etudiant e = etudiants.trouverParId(d.refEtudiant());
         if (e == null) {
             return Optional.empty();
         }
@@ -105,7 +108,7 @@ public class NouveauSystemeAdapter implements SystemeResidence {
 
     @Override
     public Optional<EtatBail> consulter(String idBail) {
-        Bail b = Database.baux.get(idBail);
+        Bail b = baux.trouverParId(idBail);
         if (b == null) {
             return Optional.empty();
         }
@@ -142,7 +145,7 @@ public class NouveauSystemeAdapter implements SystemeResidence {
     @Override
     public Optional<String> quittance(String idBail, YearMonth mois) {
         QuittanceGenerateur generateur = new QuittanceGenerateur();
-        return Optional.ofNullable(Database.baux.get(idBail)).map(b -> generateur.generer(b, mois.toString()));
+        return Optional.ofNullable(baux.trouverParId(idBail)).map(b -> generateur.generer(b, mois.toString()));
     }
 
     @Override
@@ -152,7 +155,7 @@ public class NouveauSystemeAdapter implements SystemeResidence {
 
     @Override
     public String rapport() {
-        return new RapportGenerateur().generer(Residence.logements, Database.getInstance().tousLesBaux(),
+        return new RapportGenerateur().generer(logements.tous(), baux.tous(),
                 SmsService.compteurSms, CourrierService.totalAffranchissement);
     }
 
@@ -169,13 +172,6 @@ public class NouveauSystemeAdapter implements SystemeResidence {
             notifications.add(new Notification(Canal.COURRIER, courrier[0], courrier[1]));
         }
         return notifications;
-    }
-
-    private static Etudiant etudiant(String ref) {
-        for (Etudiant e : Database.etudiants.values()) {
-            if (e.getId().equals(ref)) return e;
-        }
-        return null;
     }
 
     private static Set<OptionLoyer> convertirOptions(Set<Option> options) {

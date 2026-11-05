@@ -6,11 +6,14 @@ import java.util.Set;
 public class Main {
 
     public static void main(String[] args) {
-        Residence.initialiser();
-        Database db = Database.getInstance();
+        EtudiantRepository etudiants = new DepotEtudiantMemoire();
+        BailRepository baux = new DepotBailMemoire();
+        LogementRepository logements = new DepotLogementMemoire();
+        Residence.creerLogementsInitiaux().forEach(logements::sauvegarder);
         ServiceNotification serviceNotification = new ServiceNotification();
-        GestionResidence gestion = new GestionResidence(serviceNotification, new ValidateurInscription(),
-                new ServiceAttribution(), new CycleVieBailService(db, serviceNotification));
+        GestionResidence gestion = new GestionResidence(etudiants, baux, logements, serviceNotification,
+                new ValidateurInscription(), new ServiceAttribution(),
+                new CycleVieBailService(baux, serviceNotification));
 
         gestion.ajouterLogement(TypeLogement.STUDIO, "C002", 16, 0, false, 0);
 
@@ -87,7 +90,7 @@ public class Main {
         gestion.sortir(bD.getId(), LocalDate.of(2026, 11, 20), 120);
         gestion.sortir(bE.getId(), LocalDate.of(2026, 11, 20), 30);
 
-        new RapportGenerateur().afficher(Residence.logements, Database.getInstance().tousLesBaux(),
+        new RapportGenerateur().afficher(logements.tous(), baux.tous(),
                 SmsService.compteurSms, CourrierService.totalAffranchissement);
     }
 }

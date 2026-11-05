@@ -8,16 +8,16 @@ public class CycleVieBailService {
 
     public static final int JOUR_ECHEANCE_LOYER = 5;
 
-    private final Database db;
+    private final BailRepository baux;
     private final NotificationService notificationService;
 
-    public CycleVieBailService(Database db, NotificationService notificationService) {
-        this.db = Objects.requireNonNull(db, "db");
+    public CycleVieBailService(BailRepository baux, NotificationService notificationService) {
+        this.baux = Objects.requireNonNull(baux, "baux");
         this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
     }
 
     public boolean entrerDansLesLieux(String idBail, LocalDate date) {
-        Bail bail = db.trouverBail(idBail);
+        Bail bail = baux.trouverParId(idBail);
         if (bail == null || bail.getStatut() != StatutBail.SIGNE) {
             System.out.println("Entrée impossible pour " + idBail);
             return false;
@@ -28,7 +28,7 @@ public class CycleVieBailService {
         }
         bail.setDateEntree(date);
         bail.setStatut(StatutBail.ACTIF);
-        db.mettreAJourBail(bail);
+        baux.mettreAJour(bail);
         System.out.println("Entrée dans les lieux : " + idBail + " le " + Utils.date(date));
         notificationService.notifier(bail.getEtudiant(), "État des lieux d'entrée",
                 "Votre état des lieux d'entrée du logement " + bail.getLogement().getNumero() + " est fait le "
@@ -37,7 +37,7 @@ public class CycleVieBailService {
     }
 
     public boolean payerLoyer(String idBail, String mois, LocalDate datePaiement, double montant) {
-        Bail bail = db.trouverBail(idBail);
+        Bail bail = baux.trouverParId(idBail);
         if (bail == null || !(bail.getStatut() == StatutBail.ACTIF || bail.getStatut() == StatutBail.PREAVIS)) {
             System.out.println("Paiement refusé pour " + idBail);
             return false;
@@ -51,7 +51,7 @@ public class CycleVieBailService {
         double du = Utils.arrondir(bail.getLoyerChargesComprises() + penalite);
         bail.paiements.add(new Paiement(mois, datePaiement, montant, penalite, du));
         bail.soldeDu = Utils.arrondir(bail.soldeDu + du - montant);
-        db.mettreAJourBail(bail);
+        baux.mettreAJour(bail);
 
         System.out.println("Paiement " + idBail + " " + mois + " : " + Utils.euros(montant) + " / " + Utils.euros(du)
                 + (penalite > 0 ? " (dont pénalité " + Utils.euros(penalite) + ")" : ""));
@@ -67,7 +67,7 @@ public class CycleVieBailService {
     }
 
     public boolean donnerPreavis(String idBail, LocalDate date) {
-        Bail bail = db.trouverBail(idBail);
+        Bail bail = baux.trouverParId(idBail);
         if (bail == null || bail.getStatut() != StatutBail.ACTIF) {
             System.out.println("Préavis impossible pour " + idBail);
             return false;
@@ -75,7 +75,7 @@ public class CycleVieBailService {
         int jours = PolitiqueProfil.pour(bail.getEtudiant().getProfil()).dureePreavisJours();
         bail.setDateFin(date.plusDays(jours));
         bail.setStatut(StatutBail.PREAVIS);
-        db.mettreAJourBail(bail);
+        baux.mettreAJour(bail);
         System.out.println("Préavis " + idBail + " : fin du bail le " + Utils.date(bail.getDateFin()));
         notificationService.notifier(bail.getEtudiant(), "Préavis de départ",
                 "Votre préavis de " + jours + " jours est enregistré. Fin du bail le "
@@ -84,7 +84,7 @@ public class CycleVieBailService {
     }
 
     public boolean sortir(String idBail, LocalDate date, double retenuesDegats) {
-        Bail bail = db.trouverBail(idBail);
+        Bail bail = baux.trouverParId(idBail);
         if (bail == null || bail.getStatut() != StatutBail.PREAVIS) {
             System.out.println("Sortie impossible pour " + idBail);
             return false;
@@ -112,7 +112,7 @@ public class CycleVieBailService {
         bail.cautionRestituee = Utils.arrondir(restitution);
         bail.soldeDu = Utils.arrondir(resteAPayer);
         bail.setStatut(StatutBail.TERMINE);
-        db.mettreAJourBail(bail);
+        baux.mettreAJour(bail);
 
         System.out.println("Sortie " + idBail + " le " + Utils.date(date) + " : caution " + Utils.euros(bail.getCaution())
                 + ", retenues " + Utils.euros(bail.retenues) + ", impayés " + Utils.euros(impayes)
@@ -127,7 +127,7 @@ public class CycleVieBailService {
     }
 
     public boolean annulerBail(String idBail) {
-        Bail bail = db.trouverBail(idBail);
+        Bail bail = baux.trouverParId(idBail);
         if (bail == null || bail.getStatut() != StatutBail.SIGNE) {
             System.out.println("Annulation impossible pour " + idBail);
             return false;
@@ -139,7 +139,7 @@ public class CycleVieBailService {
             logement.liberer(bail.getEtudiant());
         }
         bail.setStatut(StatutBail.ANNULE);
-        db.mettreAJourBail(bail);
+        baux.mettreAJour(bail);
         System.out.println("Bail " + idBail + " annulé, frais de dossier conservés : "
                 + Utils.euros(bail.getFraisDossier()));
         notificationService.notifier(bail.getEtudiant(), "Annulation du bail " + idBail,
@@ -149,7 +149,7 @@ public class CycleVieBailService {
 
     public void relancerImpayes() {
         System.out.println("--- Relance des impayés");
-        for (Bail bail : db.tousLesBaux()) {
+        for (Bail bail : baux.tous()) {
             if (bail.soldeDu <= 0) continue;
             if (bail.getStatut() == StatutBail.ANNULE) continue;
             notificationService.relancerImpayes(bail);

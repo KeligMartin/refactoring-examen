@@ -11,15 +11,21 @@ public class GestionResidence {
 
     public static int compteurBail = 0;
 
-    private Database db = Database.getInstance();
+    private final EtudiantRepository etudiants;
+    private final BailRepository baux;
+    private final LogementRepository logements;
     private CalculateurLoyer calculateur = new CalculateurLoyer();
     private final NotificationService notificationService;
     private final ValidateurInscription validateurInscription;
     private final ServiceAttribution serviceAttribution;
     private final CycleVieBailService cycleVieBailService;
 
-    public GestionResidence(NotificationService notificationService, ValidateurInscription validateurInscription,
+    public GestionResidence(EtudiantRepository etudiants, BailRepository baux, LogementRepository logements,
+                            NotificationService notificationService, ValidateurInscription validateurInscription,
                             ServiceAttribution serviceAttribution, CycleVieBailService cycleVieBailService) {
+        this.etudiants = Objects.requireNonNull(etudiants, "etudiants");
+        this.baux = Objects.requireNonNull(baux, "baux");
+        this.logements = Objects.requireNonNull(logements, "logements");
         this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
         this.validateurInscription = Objects.requireNonNull(validateurInscription, "validateurInscription");
         this.serviceAttribution = Objects.requireNonNull(serviceAttribution, "serviceAttribution");
@@ -32,14 +38,14 @@ public class GestionResidence {
                                      ProfilEtudiant profil, int echelonBourse, double ressources, boolean pmr,
                                      CanalNotification canalPrefere) {
         String motif = validateurInscription.motifRefus(nom, email, telephone, adresse, profil, echelonBourse,
-                canalPrefere, adresseEmail -> db.trouverEtudiantParEmail(adresseEmail) != null);
+                canalPrefere, adresseEmail -> etudiants.trouverParEmail(adresseEmail) != null);
         if (motif != null) {
             System.out.println(motif);
             return null;
         }
         Etudiant e = new Etudiant(nom, prenom, email, telephone, adresse, profil, echelonBourse, ressources, pmr,
                 canalPrefere);
-        db.sauvegarderEtudiant(e);
+        etudiants.sauvegarder(e);
         System.out.println("Étudiant inscrit : " + e.getId() + " " + e.getNomComplet() + " (" + profil + ")");
         return e;
     }
@@ -47,7 +53,7 @@ public class GestionResidence {
     // ------------------------------------------------------------------ logements
 
     public Logement ajouterLogement(TypeLogement type, String numero, double surface, int etage, boolean meuble, int param) {
-        if (Residence.trouver(numero) != null) {
+        if (logements.trouverParNumero(numero) != null) {
             System.out.println("Logement " + numero + " existe déjà");
             return null;
         }
@@ -56,7 +62,7 @@ public class GestionResidence {
             System.out.println("Type de logement inconnu : " + type);
             return null;
         }
-        Residence.logements.add(l);
+        logements.sauvegarder(l);
         System.out.println("Logement ajouté : " + numero + " (" + type + ")");
         return l;
     }
@@ -64,7 +70,7 @@ public class GestionResidence {
     // ------------------------------------------------------------------ attribution
 
     public Bail attribuerLogement(Etudiant e, TypeLogement typeSouhaite, Set<OptionLoyer> options, LocalDate dateSignature) {
-        ResultatAttribution resultat = serviceAttribution.attribuer(e, typeSouhaite, options, Residence.logements,
+        ResultatAttribution resultat = serviceAttribution.attribuer(e, typeSouhaite, options, logements.tous(),
                 calculateur);
         if (resultat == null) {
             return null;
@@ -81,7 +87,7 @@ public class GestionResidence {
         b.setCaution(Utils.arrondir(politique.depotGarantie(resultat.loyerHorsCharges())));
         b.setFraisDossier(politique.fraisDossier());
 
-        db.sauvegarderBail(b);
+        baux.sauvegarder(b);
         System.out.println("  Bail " + id + " signé : " + choisi.getNumero() + ", " + Utils.euros(b.getLoyerChargesComprises())
                 + " CC/mois, caution " + Utils.euros(b.getCaution()) + ", frais de dossier " + Utils.euros(b.getFraisDossier()));
         notificationService.notifier(e, "Votre bail " + id,
