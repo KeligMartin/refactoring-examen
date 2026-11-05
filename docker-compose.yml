@@ -1,0 +1,11 @@
+services:
+  tests:
+    image: maven:3.9-eclipse-temurin-25
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - maven-repository:/root/.m2
+    command: mvn --batch-mode install
+
+volumes:
+  maven-repository:
