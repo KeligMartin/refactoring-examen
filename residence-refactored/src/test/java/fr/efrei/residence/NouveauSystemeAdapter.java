@@ -150,7 +150,8 @@ public class NouveauSystemeAdapter implements SystemeResidence {
 
     @Override
     public String rapport() {
-        return gestion.genererRapport();
+        return new RapportGenerateur().generer(Residence.logements, Database.getInstance().tousLesBaux(),
+                SmsService.compteurSms, CourrierService.totalAffranchissement);
     }
 
     @Override

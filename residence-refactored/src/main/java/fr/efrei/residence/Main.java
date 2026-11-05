@@ -84,6 +84,7 @@ public class Main {
         gestion.sortir(bD.getId(), LocalDate.of(2026, 11, 20), 120);
         gestion.sortir(bE.getId(), LocalDate.of(2026, 11, 20), 30);
 
-        gestion.afficherRapport();
+        new RapportGenerateur().afficher(Residence.logements, Database.getInstance().tousLesBaux(),
+                SmsService.compteurSms, CourrierService.totalAffranchissement);
     }
 }
