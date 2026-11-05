@@ -9,20 +9,20 @@ import java.util.Set;
  */
 public class GestionResidence {
 
-    public static int compteurBail = 0;
-
     private final EtudiantRepository etudiants;
     private final BailRepository baux;
     private final LogementRepository logements;
-    private CalculateurLoyer calculateur = new CalculateurLoyer();
+    private final CalculateurLoyer calculateur;
     private final NotificationService notificationService;
     private final ValidateurInscription validateurInscription;
     private final ServiceAttribution serviceAttribution;
     private final CycleVieBailService cycleVieBailService;
+    private final IdentifiantSequence identifiants;
 
     public GestionResidence(EtudiantRepository etudiants, BailRepository baux, LogementRepository logements,
                             NotificationService notificationService, ValidateurInscription validateurInscription,
-                            ServiceAttribution serviceAttribution, CycleVieBailService cycleVieBailService) {
+                            ServiceAttribution serviceAttribution, CycleVieBailService cycleVieBailService,
+                            IdentifiantSequence identifiants, CalculateurLoyer calculateur) {
         this.etudiants = Objects.requireNonNull(etudiants, "etudiants");
         this.baux = Objects.requireNonNull(baux, "baux");
         this.logements = Objects.requireNonNull(logements, "logements");
@@ -30,6 +30,8 @@ public class GestionResidence {
         this.validateurInscription = Objects.requireNonNull(validateurInscription, "validateurInscription");
         this.serviceAttribution = Objects.requireNonNull(serviceAttribution, "serviceAttribution");
         this.cycleVieBailService = Objects.requireNonNull(cycleVieBailService, "cycleVieBailService");
+        this.identifiants = Objects.requireNonNull(identifiants, "identifiants");
+        this.calculateur = Objects.requireNonNull(calculateur, "calculateur");
     }
 
     // ------------------------------------------------------------------ étudiants
@@ -43,8 +45,8 @@ public class GestionResidence {
             System.out.println(motif);
             return null;
         }
-        Etudiant e = new Etudiant(nom, prenom, email, telephone, adresse, profil, echelonBourse, ressources, pmr,
-                canalPrefere);
+        Etudiant e = new Etudiant(identifiants.prochainEtudiant(), nom, prenom, email, telephone, adresse, profil,
+                echelonBourse, ressources, pmr, canalPrefere);
         etudiants.sauvegarder(e);
         System.out.println("Étudiant inscrit : " + e.getId() + " " + e.getNomComplet() + " (" + profil + ")");
         return e;
@@ -77,8 +79,7 @@ public class GestionResidence {
         }
         Logement choisi = resultat.logement();
 
-        compteurBail++;
-        String id = "BAIL-" + String.format("%03d", compteurBail);
+        String id = identifiants.prochainBail();
         Bail b = new Bail(id, e, choisi, dateSignature, options);
         b.setLoyerHorsCharges(resultat.loyerHorsCharges());
         b.setCharges(resultat.charges());

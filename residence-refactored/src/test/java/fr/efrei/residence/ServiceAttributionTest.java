@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ServiceAttributionTest {
 
     private final ServiceAttribution service = new ServiceAttribution();
-    private final CalculateurLoyer calculateur = new CalculateurLoyer();
+    private final CalculateurLoyer calculateur = new CalculateurLoyer(new AssembleurLoyer());
 
     @Test
     void choisitLePremierLogementSolvable() {
@@ -58,7 +58,7 @@ class ServiceAttributionTest {
     }
 
     private Etudiant etudiant(double ressources, boolean pmr) {
-        return new Etudiant("Martin", "Alice", "alice@example.fr", "0600000000", null,
+        return new Etudiant("ETU-001", "Martin", "Alice", "alice@example.fr", "0600000000", null,
                 ProfilEtudiant.STANDARD, 0, ressources, pmr, CanalNotification.EMAIL);
     }
 }

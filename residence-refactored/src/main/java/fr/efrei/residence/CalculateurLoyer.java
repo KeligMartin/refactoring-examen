@@ -1,5 +1,6 @@
 package fr.efrei.residence;
 
+import java.util.Objects;
 import java.util.Set;
 
 public class CalculateurLoyer {
@@ -12,7 +13,11 @@ public class CalculateurLoyer {
     public static final double OPTION_FIBRE = DecorateurFibre.MONTANT;
     public static final double OPTION_ASSURANCE = DecorateurAssurance.MONTANT;
 
-    private final AssembleurLoyer assembleur = new AssembleurLoyer();
+    private final AssembleurLoyer assembleur;
+
+    public CalculateurLoyer(AssembleurLoyer assembleur) {
+        this.assembleur = Objects.requireNonNull(assembleur, "assembleur");
+    }
 
     /**
      * Loyer mensuel hors charges, options comprises, remise déduite.

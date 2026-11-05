@@ -25,8 +25,7 @@ import java.util.Set;
 /**
  * Branche le code historique sur les tests de contrat.
  * <p>
- * Tout le « bricolage » nécessaire pour tester l'ancien code (état statique à vider,
- * conversion des codes {@code String}, booléens d'options…) est confiné ici.
+ * Les conversions nécessaires pour brancher le contrat sur le code refactoré sont confinées ici.
  */
 public class NouveauSystemeAdapter implements SystemeResidence {
 
@@ -34,23 +33,24 @@ public class NouveauSystemeAdapter implements SystemeResidence {
     private EtudiantRepository etudiants;
     private BailRepository baux;
     private LogementRepository logements;
+    private ServiceNotification serviceNotification;
+    private CalculateurLoyer calculateur;
+    private QuittanceGenerateur quittanceGenerateur;
+    private RapportGenerateur rapportGenerateur;
 
     @Override
     public void reinitialiser() {
-        EmailService.journal.clear();
-        SmsService.journal.clear();
-        CourrierService.journal.clear();
-        SmsService.compteurSms = 0;
-        CourrierService.totalAffranchissement = 0;
-        Etudiant.compteur = 0;
-        GestionResidence.compteurBail = 0;
         etudiants = new DepotEtudiantMemoire();
         baux = new DepotBailMemoire();
         logements = new DepotLogementMemoire();
         Residence.creerLogementsInitiaux().forEach(logements::sauvegarder);
-        ServiceNotification serviceNotification = new ServiceNotification();
+        serviceNotification = new ServiceNotification(new EmailService(), new SmsService(), new CourrierService());
+        calculateur = new CalculateurLoyer(new AssembleurLoyer());
+        quittanceGenerateur = new QuittanceGenerateur();
+        rapportGenerateur = new RapportGenerateur();
         gestion = new GestionResidence(etudiants, baux, logements, serviceNotification, new ValidateurInscription(),
-                new ServiceAttribution(), new CycleVieBailService(baux, serviceNotification));
+                new ServiceAttribution(), new CycleVieBailService(baux, serviceNotification), new IdentifiantSequence(),
+                calculateur);
     }
 
     @Override
@@ -90,7 +90,7 @@ public class NouveauSystemeAdapter implements SystemeResidence {
             return OptionalDouble.empty();
         }
         Set<Option> o = d.options();
-        return OptionalDouble.of(new CalculateurLoyer().calculerLoyer(l, ProfilEtudiant.valueOf(d.profil().name()), d.echelonBourse(),
+        return OptionalDouble.of(calculateur.calculerLoyer(l, ProfilEtudiant.valueOf(d.profil().name()), d.echelonBourse(),
                 convertirOptions(o)));
     }
 
@@ -144,8 +144,8 @@ public class NouveauSystemeAdapter implements SystemeResidence {
 
     @Override
     public Optional<String> quittance(String idBail, YearMonth mois) {
-        QuittanceGenerateur generateur = new QuittanceGenerateur();
-        return Optional.ofNullable(baux.trouverParId(idBail)).map(b -> generateur.generer(b, mois.toString()));
+        return Optional.ofNullable(baux.trouverParId(idBail))
+                .map(b -> quittanceGenerateur.generer(b, mois.toString()));
     }
 
     @Override
@@ -155,20 +155,20 @@ public class NouveauSystemeAdapter implements SystemeResidence {
 
     @Override
     public String rapport() {
-        return new RapportGenerateur().generer(logements.tous(), baux.tous(),
-                SmsService.compteurSms, CourrierService.totalAffranchissement);
+        return rapportGenerateur.generer(logements.tous(), baux.tous(),
+                serviceNotification.getNombreSmsEnvoyes(), serviceNotification.getAffranchissement());
     }
 
     @Override
     public List<Notification> notifications() {
         List<Notification> notifications = new ArrayList<>();
-        for (String[] email : EmailService.journal) {
+        for (String[] email : serviceNotification.getEmailJournal()) {
             notifications.add(new Notification(Canal.EMAIL, email[0], email[1]));
         }
-        for (String[] sms : SmsService.journal) {
+        for (String[] sms : serviceNotification.getSmsJournal()) {
             notifications.add(new Notification(Canal.SMS, sms[0], sms[1]));
         }
-        for (String[] courrier : CourrierService.journal) {
+        for (String[] courrier : serviceNotification.getCourrierJournal()) {
             notifications.add(new Notification(Canal.COURRIER, courrier[0], courrier[1]));
         }
         return notifications;

@@ -10,10 +10,14 @@ public class Main {
         BailRepository baux = new DepotBailMemoire();
         LogementRepository logements = new DepotLogementMemoire();
         Residence.creerLogementsInitiaux().forEach(logements::sauvegarder);
-        ServiceNotification serviceNotification = new ServiceNotification();
+        EmailService emailService = new EmailService();
+        SmsService smsService = new SmsService();
+        CourrierService courrierService = new CourrierService();
+        ServiceNotification serviceNotification = new ServiceNotification(emailService, smsService, courrierService);
+        CalculateurLoyer calculateur = new CalculateurLoyer(new AssembleurLoyer());
         GestionResidence gestion = new GestionResidence(etudiants, baux, logements, serviceNotification,
                 new ValidateurInscription(), new ServiceAttribution(),
-                new CycleVieBailService(baux, serviceNotification));
+                new CycleVieBailService(baux, serviceNotification), new IdentifiantSequence(), calculateur);
 
         gestion.ajouterLogement(TypeLogement.STUDIO, "C002", 16, 0, false, 0);
 
@@ -91,6 +95,6 @@ public class Main {
         gestion.sortir(bE.getId(), LocalDate.of(2026, 11, 20), 30);
 
         new RapportGenerateur().afficher(logements.tous(), baux.tous(),
-                SmsService.compteurSms, CourrierService.totalAffranchissement);
+                serviceNotification.getNombreSmsEnvoyes(), serviceNotification.getAffranchissement());
     }
 }

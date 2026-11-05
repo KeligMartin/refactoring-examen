@@ -13,7 +13,7 @@ class QuittanceGenerateurTest {
 
     @Test
     void genereLeTexteDeLaQuittancePourUnMoisPaye() {
-        Etudiant etudiant = new Etudiant("Martin", "Alice", "alice@example.fr", "0600000000", null,
+        Etudiant etudiant = new Etudiant("ETU-001", "Martin", "Alice", "alice@example.fr", "0600000000", null,
                 ProfilEtudiant.STANDARD, 0, 1500, false, CanalNotification.EMAIL);
         Logement logement = new Studio("A001", 26, 1, true);
         Bail bail = new Bail("BAIL-001", etudiant, logement, LocalDate.of(2026, 8, 25),
@@ -45,7 +45,7 @@ class QuittanceGenerateurTest {
 
     @Test
     void retourneUnMessageSiAucunPaiementNExistePourLeMois() {
-        Etudiant etudiant = new Etudiant("Martin", "Alice", "alice@example.fr", "0600000000", null,
+        Etudiant etudiant = new Etudiant("ETU-001", "Martin", "Alice", "alice@example.fr", "0600000000", null,
                 ProfilEtudiant.STANDARD, 0, 1500, false, CanalNotification.EMAIL);
         Bail bail = new Bail("BAIL-001", etudiant, new Studio("A001", 26, 1, true),
                 LocalDate.of(2026, 8, 25), Set.of());

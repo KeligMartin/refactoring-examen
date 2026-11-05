@@ -51,7 +51,7 @@ class DepotMemoireTest {
     }
 
     private Etudiant creerEtudiant() {
-        return new Etudiant("Martin", "Alice", "alice@example.fr", "0600000000", null,
+        return new Etudiant("ETU-001", "Martin", "Alice", "alice@example.fr", "0600000000", null,
                 ProfilEtudiant.STANDARD, 0, 1500, false, CanalNotification.EMAIL);
     }
 }

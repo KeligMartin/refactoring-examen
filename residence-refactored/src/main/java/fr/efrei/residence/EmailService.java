@@ -1,6 +1,7 @@
 package fr.efrei.residence;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class EmailService {
@@ -8,10 +9,9 @@ public class EmailService {
     public static final String SMTP_HOST = "smtp.campusvert.fr";
     public static final String EXPEDITEUR = "gestion@campusvert.fr";
 
-    // garde une trace des emails envoyés (demandé par l'administration)
-    public static List<String[]> journal = new ArrayList<String[]>();
+    private final List<String[]> journal = new ArrayList<>();
 
-    public static boolean envoyer(String destinataire, String sujet, String corps) {
+    public boolean envoyer(String destinataire, String sujet, String corps) {
         try {
             if (!Utils.emailValide(destinataire)) {
                 throw new Exception("Adresse invalide");
@@ -23,5 +23,9 @@ public class EmailService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public List<String[]> getJournal() {
+        return Collections.unmodifiableList(journal);
     }
 }
