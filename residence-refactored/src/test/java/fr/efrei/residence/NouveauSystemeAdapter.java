@@ -45,7 +45,9 @@ public class NouveauSystemeAdapter implements SystemeResidence {
         Etudiant.compteur = 0;
         GestionResidence.compteurBail = 0;
         Residence.initialiser();
-        gestion = new GestionResidence(new ServiceNotification(), new ValidateurInscription(), new ServiceAttribution());
+        ServiceNotification serviceNotification = new ServiceNotification();
+        gestion = new GestionResidence(serviceNotification, new ValidateurInscription(), new ServiceAttribution(),
+                new CycleVieBailService(Database.getInstance(), serviceNotification));
     }
 
     @Override

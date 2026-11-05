@@ -7,8 +7,10 @@ public class Main {
 
     public static void main(String[] args) {
         Residence.initialiser();
-        GestionResidence gestion = new GestionResidence(new ServiceNotification(), new ValidateurInscription(),
-                new ServiceAttribution());
+        Database db = Database.getInstance();
+        ServiceNotification serviceNotification = new ServiceNotification();
+        GestionResidence gestion = new GestionResidence(serviceNotification, new ValidateurInscription(),
+                new ServiceAttribution(), new CycleVieBailService(db, serviceNotification));
 
         gestion.ajouterLogement(TypeLogement.STUDIO, "C002", 16, 0, false, 0);
 
