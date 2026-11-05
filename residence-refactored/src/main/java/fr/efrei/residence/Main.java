@@ -68,8 +68,9 @@ public class Main {
         gestion.payerLoyer(bC.getId(), "2026-10", LocalDate.of(2026, 10, 1), 1000);
 
         System.out.println();
-        System.out.println(bD.genererQuittance("2026-09"));
-        System.out.println(bA.genererQuittance("2026-10"));
+        QuittanceGenerateur quittanceGenerateur = new QuittanceGenerateur();
+        System.out.println(quittanceGenerateur.generer(bD, "2026-09"));
+        System.out.println(quittanceGenerateur.generer(bA, "2026-10"));
 
         System.out.println();
         gestion.relancerImpayes();

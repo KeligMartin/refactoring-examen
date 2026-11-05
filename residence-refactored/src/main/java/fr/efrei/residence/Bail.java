@@ -2,7 +2,6 @@ package fr.efrei.residence;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -46,6 +45,7 @@ public class Bail {
     public String getId() { return id; }
     public Etudiant getEtudiant() { return etudiant; }
     public Logement getLogement() { return logement; }
+    public List<Paiement> getPaiements() { return paiements; }
     public LocalDate getDateSignature() { return dateSignature; }
     public LocalDate getDateEntree() { return dateEntree; }
     public void setDateEntree(LocalDate d) { this.dateEntree = d; }
@@ -64,48 +64,4 @@ public class Bail {
     public void setFraisDossier(double f) { this.fraisDossier = f; }
     public Set<OptionLoyer> getOptions() { return options; }
 
-    public String listerOptions() {
-        String resultat = Arrays.stream(OptionLoyer.values())
-                .filter(options::contains)
-                .map(OptionLoyer::getLibelle)
-                .collect(java.util.stream.Collectors.joining(", "));
-        return resultat.isEmpty() ? "aucune" : resultat;
-    }
-
-    /**
-     * Quittance de loyer pour un mois payé (format AAAA-MM).
-     */
-    public String genererQuittance(String mois) {
-        Paiement p = null;
-        for (Paiement x : paiements) {
-            if (x.mois.equals(mois)) p = x;
-        }
-        if (p == null) {
-            return "Aucun paiement pour " + mois;
-        }
-        String q = "";
-        q += "==========================================\n";
-        q += "   RÉSIDENCE CAMPUS VERT - QUITTANCE\n";
-        q += "==========================================\n";
-        q += "Bail      : " + id + "\n";
-        q += "Locataire : " + etudiant.getNomComplet() + " (" + etudiant.getProfil() + ")\n";
-        q += "Logement  : " + logement.getNumero() + " - " + logement.getType() + " " + logement.getSurface() + " m²";
-        if (logement.isMeuble()) q += " meublé";
-        q += "\n";
-        q += "Période   : " + mois + "\n";
-        q += "Options   : " + listerOptions() + "\n";
-        q += "------------------------------------------\n";
-        q += "Loyer HC  : " + Utils.euros(loyerHorsCharges) + "\n";
-        q += "Charges   : " + Utils.euros(charges) + "\n";
-        if (p.penalite > 0) {
-            q += "Pénalité  : " + Utils.euros(p.penalite) + "\n";
-        }
-        q += "Total dû  : " + Utils.euros(p.du) + "\n";
-        q += "Payé le   : " + Utils.date(p.date) + " : " + Utils.euros(p.montant) + "\n";
-        if (p.montant < p.du) {
-            q += "RESTE DÛ  : " + Utils.euros(Utils.arrondir(p.du - p.montant)) + "\n";
-        }
-        q += "==========================================";
-        return q;
-    }
 }

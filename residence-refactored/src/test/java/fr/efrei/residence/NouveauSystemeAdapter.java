@@ -139,7 +139,8 @@ public class NouveauSystemeAdapter implements SystemeResidence {
 
     @Override
     public Optional<String> quittance(String idBail, YearMonth mois) {
-        return Optional.ofNullable(Database.baux.get(idBail)).map(b -> b.genererQuittance(mois.toString()));
+        QuittanceGenerateur generateur = new QuittanceGenerateur();
+        return Optional.ofNullable(Database.baux.get(idBail)).map(b -> generateur.generer(b, mois.toString()));
     }
 
     @Override
