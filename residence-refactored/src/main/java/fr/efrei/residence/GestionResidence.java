@@ -3,6 +3,7 @@ package fr.efrei.residence;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -14,6 +15,11 @@ public class GestionResidence {
 
     private Database db = Database.getInstance();
     private CalculateurLoyer calculateur = new CalculateurLoyer();
+    private final NotificationService notificationService;
+
+    public GestionResidence(NotificationService notificationService) {
+        this.notificationService = Objects.requireNonNull(notificationService, "notificationService");
+    }
 
     // ------------------------------------------------------------------ étudiants
 
@@ -119,7 +125,7 @@ public class GestionResidence {
         db.sauvegarderBail(b);
         System.out.println("  Bail " + id + " signé : " + choisi.getNumero() + ", " + Utils.euros(b.getLoyerChargesComprises())
                 + " CC/mois, caution " + Utils.euros(b.getCaution()) + ", frais de dossier " + Utils.euros(b.getFraisDossier()));
-        notifier(e, "Votre bail " + id,
+        notificationService.notifier(e, "Votre bail " + id,
                 "Bienvenue à la " + Residence.NOM + " ! Logement " + choisi.getNumero() + ", loyer "
                         + Utils.euros(b.getLoyerChargesComprises()) + " charges comprises.");
         return b;
@@ -141,7 +147,7 @@ public class GestionResidence {
         b.setStatut(StatutBail.ACTIF);
         db.mettreAJourBail(b);
         System.out.println("Entrée dans les lieux : " + idBail + " le " + Utils.date(date));
-        notifier(b.getEtudiant(), "État des lieux d'entrée",
+        notificationService.notifier(b.getEtudiant(), "État des lieux d'entrée",
                 "Votre état des lieux d'entrée du logement " + b.getLogement().getNumero() + " est fait le "
                         + Utils.date(date) + ". Remise des clés effectuée. Pensez à souscrire une assurance habitation si ce n'est pas déjà fait.");
         return true;
@@ -169,11 +175,11 @@ public class GestionResidence {
         System.out.println("Paiement " + idBail + " " + mois + " : " + Utils.euros(montant) + " / " + Utils.euros(du)
                 + (penalite > 0 ? " (dont pénalité " + Utils.euros(penalite) + ")" : ""));
         if (montant < du) {
-            notifier(b.getEtudiant(), "Paiement incomplet " + mois,
+            notificationService.notifier(b.getEtudiant(), "Paiement incomplet " + mois,
                     "Nous avons reçu " + Utils.euros(montant) + " sur " + Utils.euros(du) + ". Reste dû : "
                             + Utils.euros(Utils.arrondir(du - montant)) + ".");
         } else {
-            notifier(b.getEtudiant(), "Quittance " + mois, "Merci, votre loyer de " + mois + " est réglé.");
+            notificationService.notifier(b.getEtudiant(), "Quittance " + mois, "Merci, votre loyer de " + mois + " est réglé.");
         }
         return true;
     }
@@ -189,7 +195,7 @@ public class GestionResidence {
         b.setStatut(StatutBail.PREAVIS);
         db.mettreAJourBail(b);
         System.out.println("Préavis " + idBail + " : fin du bail le " + Utils.date(b.getDateFin()));
-        notifier(b.getEtudiant(), "Préavis de départ",
+        notificationService.notifier(b.getEtudiant(), "Préavis de départ",
                 "Votre préavis de " + jours + " jours est enregistré. Fin du bail le " + Utils.date(b.getDateFin()) + ".");
         return true;
     }
@@ -232,7 +238,7 @@ public class GestionResidence {
         if (resteAPayer > 0) {
             message = message + " Il reste " + Utils.euros(b.soldeDu) + " à régler.";
         }
-        notifier(b.getEtudiant(), "Sortie du logement " + l.getNumero(), message);
+        notificationService.notifier(b.getEtudiant(), "Sortie du logement " + l.getNumero(), message);
         return true;
     }
 
@@ -251,7 +257,7 @@ public class GestionResidence {
         b.setStatut(StatutBail.ANNULE);
         db.mettreAJourBail(b);
         System.out.println("Bail " + idBail + " annulé, frais de dossier conservés : " + Utils.euros(b.getFraisDossier()));
-        notifier(b.getEtudiant(), "Annulation du bail " + idBail,
+        notificationService.notifier(b.getEtudiant(), "Annulation du bail " + idBail,
                 "Votre bail est annulé. Les frais de dossier (" + Utils.euros(b.getFraisDossier()) + ") restent acquis.");
         return true;
     }
@@ -263,41 +269,7 @@ public class GestionResidence {
         for (Bail b : db.tousLesBaux()) {
             if (b.soldeDu <= 0) continue;
             if (b.getStatut() == StatutBail.ANNULE) continue;
-            Etudiant e = b.getEtudiant();
-            CanalNotification canal = e.getCanalPrefere();
-            switch (canal) {
-                case EMAIL:
-                    EmailService.envoyer(e.getEmail(), "RELANCE - loyer impayé",
-                            "Bonjour " + e.getPrenom() + ", il reste " + Utils.euros(b.soldeDu) + " à régler sur le bail " + b.getId() + ".");
-                    break;
-                case SMS:
-                    ServiceNotificationFactory.creerSms().envoyerSms(e.getTelephone(),
-                            "Campus Vert : " + Utils.euros(b.soldeDu) + " impayés sur " + b.getId());
-                    break;
-                case COURRIER:
-                    ServiceNotificationFactory.creerCourrier().imprimerEtPoster(e.getNomComplet(), e.getAdresse(), "Relance loyer impayé",
-                            "Il reste " + Utils.euros(b.soldeDu) + " à régler sur le bail " + b.getId() + ".");
-                    break;
-                default:
-                    System.out.println("Canal inconnu " + canal);
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------ notifications
-
-    private void notifier(Etudiant e, String sujet, String message) {
-        CanalNotification canal = e.getCanalPrefere();
-        if (canal == CanalNotification.EMAIL) {
-            EmailService.envoyer(e.getEmail(), sujet, message);
-        } else if (canal == CanalNotification.SMS) {
-            ServiceNotificationFactory.creerSms().envoyerSms(e.getTelephone(), sujet + " - " + message);
-        } else if (canal == CanalNotification.COURRIER) {
-            ServiceNotificationFactory.creerCourrier().imprimerEtPoster(e.getNomComplet(), e.getAdresse(), sujet, message);
-        }
-        // les internationaux reçoivent toujours un email en plus (demande de l'administration)
-        if (PolitiqueProfil.pour(e.getProfil()).recoitEmailComplementaire(canal)) {
-            EmailService.envoyer(e.getEmail(), "[EN] " + sujet, message);
+            notificationService.relancerImpayes(b);
         }
     }
 }

@@ -45,7 +45,7 @@ public class NouveauSystemeAdapter implements SystemeResidence {
         Etudiant.compteur = 0;
         GestionResidence.compteurBail = 0;
         Residence.initialiser();
-        gestion = new GestionResidence();
+        gestion = new GestionResidence(new ServiceNotification());
     }
 
     @Override

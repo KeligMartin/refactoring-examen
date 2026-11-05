@@ -7,7 +7,7 @@ public class Main {
 
     public static void main(String[] args) {
         Residence.initialiser();
-        GestionResidence gestion = new GestionResidence();
+        GestionResidence gestion = new GestionResidence(new ServiceNotification());
 
         gestion.ajouterLogement(TypeLogement.STUDIO, "C002", 16, 0, false, 0);
 
